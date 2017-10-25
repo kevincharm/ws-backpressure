@@ -36,9 +36,13 @@ class DataSource {
     constructor(ws) {
         this.sentMessages = 0
         this.socketFlushFailures = 0
+        this.flowControl = true
 
         this.ws = ws
-        this.ws.on('drain', this.resume)
+        this.ws.on('drain', () => {
+            console.log('Received drain event.')
+            this.resume()
+        })
         const printSentMessages = setInterval(() => {
             console.log(`Sent messages: ${this.sentMessages}`)
         }, 5000)
@@ -46,18 +50,25 @@ class DataSource {
     }
 
     pause() {
-        console.log('Pausing fake data stream.')
-        if (this.fakeDataTimer) clearInterval(this.fakeDataTimer)
-        setTimeout(() => this.resume(), 10000)
+        if (!this.flowControl) {
+            console.log('Pausing fake data stream.')
+            this.flowControl = true
+            clearInterval(this.fakeDataTimer)
+        } else {
+            console.log('Already paused.')
+        }
     }
 
     resume() {
-        // start 100Hz random data generation
-        console.log('Resuming fake data stream.')
-        this.fakeDataTimer = setInterval(() => {
-            if (this.ws && this.ws.readyState === WebSocket.OPEN)
-                this.send(randomData())
-        }, 1)
+        if (this.flowControl) {
+            console.log('Resuming fake data stream.')
+            this.flowControl = false
+            clearInterval(this.fakeDataTimer)
+            this.fakeDataTimer = setInterval(() => {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN)
+                    this.send(randomData())
+            }, 1)
+        }
     }
 
     send(msg) {
