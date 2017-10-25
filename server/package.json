@@ -12,6 +12,8 @@
   "dependencies": {
     "@hellstad/ws": "^3.1.1",
     "dummy-json": "^2.0.0",
-    "uuid": "^3.1.0"
+    "uuid": "^3.1.0",
+    "websocket-stream": "^5.0.1",
+    "ws": "^3.2.0"
   }
 }

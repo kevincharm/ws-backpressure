@@ -1,4 +1,5 @@
-const WebSocket = require('@hellstad/ws')
+const WebSocket = require('ws')
+const websocketStream = require('websocket-stream/stream')
 const wss = new WebSocket.Server({ port: 3000 })
 const dummyjson = require('dummy-json')
 const dummyTemplate = `
@@ -65,14 +66,15 @@ class DataSource {
             this.flowControl = false
             clearInterval(this.fakeDataTimer)
             this.fakeDataTimer = setInterval(() => {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN)
+                // if (this.ws && this.ws.readyState === WebSocket.OPEN)
                     this.send(randomData())
             }, 1)
         }
     }
 
     send(msg) {
-        const flushed = this.ws.send(msg, err => {
+        let send = this.ws.send || this.ws.write.bind(this.ws)
+        const flushed = send(msg, err => {
             if (err) return console.error(err)
 
             this.sentMessages += 1
@@ -90,12 +92,11 @@ class DataSource {
 }
 
 wss.on('connection', ws => {
-    console.log('socket opened:', ws)
-
     ws.on('message', msg => {
         console.log('received:', msg)
     })
 
-    const src = new DataSource(ws)
+    const src = new DataSource(websocketStream(ws))
+    console.log(src)
     src.resume()
 })
