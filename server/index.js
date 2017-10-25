@@ -1,18 +1,36 @@
 const WebSocket = require('@hellstad/ws')
 const wss = new WebSocket.Server({ port: 3000 })
-const uuid = require('uuid')
+const dummyjson = require('dummy-json')
+const dummyTemplate = `
+{
+  "users": [
+    {{#repeat 2}}
+    {
+      "id": {{@index}},
+      "name": "{{firstName}} {{lastName}}",
+      "work": "{{company}}",
+      "email": "{{email}}",
+      "dob": "{{date '1900' '2000' 'YYYY'}}",
+      "address": "{{int 1 100}} {{street}}",
+      "city": "{{city}}",
+      "optedin": {{boolean}}
+    }
+    {{/repeat}}
+  ],
+  "images": [
+    {{#repeat 3}}
+    "img{{@index}}.png"
+    {{/repeat}}
+  ],
+  "coordinates": {
+    "x": {{float -50 50 '0.00'}},
+    "y": {{float -25 25 '0.00'}}
+  },
+  "price": "\$\{{int 0 99999 '0,0'}}"
+}
+`
 
-const randomData = () => ({
-    id: uuid.v4(),
-    obj: {
-        foo: uuid.v4(),
-        bar: uuid.v4()
-    },
-    arr: [
-        uuid.v4(),
-        uuid.v4()
-    ]
-})
+const randomData = () => dummyjson.parse(dummyTemplate)
 
 class DataSource {
     constructor(ws) {
@@ -29,24 +47,25 @@ class DataSource {
 
     pause() {
         console.log('Pausing fake data stream.')
-        clearInterval(this.fakeDataTimer)
-        setTimeout(() => this.resume(), 1000)
+        if (this.fakeDataTimer) clearInterval(this.fakeDataTimer)
+        setTimeout(() => this.resume(), 10000)
     }
 
     resume() {
         // start 100Hz random data generation
         console.log('Resuming fake data stream.')
-        this.fakeDataTimer = setInterval(() => this.send(randomData()), 10)
+        this.fakeDataTimer = setInterval(() => {
+            if (this.ws && this.ws.readyState === WebSocket.OPEN)
+                this.send(randomData())
+        }, 1)
     }
 
     send(msg) {
-        const flushed = this.ws.send(JSON.stringify(msg), err => {
+        const flushed = this.ws.send(msg, err => {
             if (err) return console.error(err)
 
             this.sentMessages += 1
         })
-
-        // return
 
         if (!flushed) {
             console.error('Failed to flush.')
